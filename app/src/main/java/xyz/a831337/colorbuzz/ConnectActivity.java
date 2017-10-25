@@ -8,6 +8,8 @@ import android.os.AsyncTask;
 import android.bluetooth.*;
 import android.bluetooth.le.*;
 import android.content.*;
+import android.text.Editable;
+import android.text.TextWatcher;
 import android.widget.*;
 import android.view.*;
 import android.Manifest;
@@ -75,15 +77,34 @@ public class ConnectActivity extends AppCompatActivity {
                 macAddrText.setText(itemMac);
             }
         });
+        macAddrText.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+
+            }
+
+            @Override
+            public void onTextChanged(CharSequence charSequence, int i, int i1, int i2) {
+                connectBtn.setActivated(charSequence.length() == 17);
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+
+            }
+        });
+        connectBtn.setActivated(false);
     }
 
     private ScanCallback leScanCallback = new ScanCallback() {
         @Override
         public void onScanResult(int callbackType, ScanResult result) {
-            String serviceString = result.getDevice().getName() + "\n" + result.getDevice().getAddress();
-            if(!foundDevices.contains(serviceString)) {
-                foundDevices.add(serviceString);
-                lAdapter.notifyDataSetChanged();
+            if(result.getDevice().getName() != null) {
+                String serviceString = result.getDevice().getName() + "\n" + result.getDevice().getAddress();
+                if (!foundDevices.contains(serviceString)) {
+                    foundDevices.add(serviceString);
+                    lAdapter.notifyDataSetChanged();
+                }
             }
         }
     };
@@ -120,21 +141,19 @@ public class ConnectActivity extends AppCompatActivity {
     }
 
     public void connectFrontendAction(View view) {
-        connectBtn.setVisibility(View.GONE);
-        disconnectBtn.setVisibility(View.VISIBLE);
         String macAddress = macAddrText.getText().toString();
-        BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(macAddress);
-        Intent i = new Intent(configurationIntentName);
-        Bundle btBundle = new Bundle();
-        btBundle.putParcelable("bt_device", device);
-        btBundle.putBoolean("activate", true);
-        i.putExtras(btBundle);
-        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        if(macAddress.length() > 0) {
+            BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(macAddress);
+            Intent i = new Intent(configurationIntentName);
+            Bundle btBundle = new Bundle();
+            btBundle.putParcelable("bt_device", device);
+            btBundle.putBoolean("activate", true);
+            i.putExtras(btBundle);
+            LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+        }
     }
 
     public void disconnectFrontendAction(View view) {
-        disconnectBtn.setVisibility(View.GONE);
-        connectBtn.setVisibility(View.VISIBLE);
         Intent i = new Intent(configurationIntentName);
         Bundle btBundle = new Bundle();
         btBundle.putBoolean("activate", false);

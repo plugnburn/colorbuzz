@@ -65,7 +65,7 @@ public class BuzzService extends NotificationListenerService {
                             else
                                 gatt.close();
                         }
-                        Log.e("BuzzService", "Device disconnected");
+                        Log.i("BuzzService", "Device disconnected");
                         break;
                     default:
                         Log.e("BuzzService", "Device entered unknown state");
@@ -92,8 +92,11 @@ public class BuzzService extends NotificationListenerService {
     }
 
     public void disconnectDevice() {
-        this.activated = false;
-        this.gattInstance.disconnect();
+        if(this.activated) {
+            this.buzz(this.connectBuzzSignal);
+            this.activated = false;
+            this.gattInstance.disconnect();
+        }
     }
 
     public class BuzzConfigurationReceiver extends BroadcastReceiver {
