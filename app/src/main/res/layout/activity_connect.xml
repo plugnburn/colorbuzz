@@ -54,6 +54,16 @@
             tools:layout_editor_absoluteX="8dp"
             tools:layout_editor_absoluteY="158dp" />
 
+        <Button
+            android:id="@+id/disconnectBtn"
+            android:layout_width="match_parent"
+            android:layout_height="48dp"
+            android:onClick="disconnectFrontendAction"
+            android:text="Disconnect"
+            android:visibility="gone"
+            tools:layout_editor_absoluteX="8dp"
+            tools:layout_editor_absoluteY="158dp" />
+
         <ListView
             android:id="@+id/deviceList"
             android:layout_width="match_parent"

@@ -18,7 +18,7 @@ import android.provider.Settings;
 public class ConnectActivity extends AppCompatActivity {
     private final static int REQUEST_ENABLE_BT = 1;
     private static final int PERMISSION_REQUEST_COARSE_LOCATION = 337;
-    private String configurationIntentName = "xyz.a831337.colorbuzz.conf";
+    private String configurationIntentName;
     private BluetoothAdapter mBluetoothAdapter;
     private BluetoothManager bluetoothManager;
     private BluetoothLeScanner btScanner;
@@ -27,6 +27,8 @@ public class ConnectActivity extends AppCompatActivity {
     private ArrayAdapter<String> lAdapter;
     private Button scanBtn;
     private Button stopScanBtn;
+    private Button connectBtn;
+    private Button disconnectBtn;
     private EditText macAddrText;
 
     private void msgBox(String title, String text) {
@@ -44,6 +46,7 @@ public class ConnectActivity extends AppCompatActivity {
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
+        configurationIntentName = getString(R.string.configuration_intent);
         if(!Settings.Secure.getString(this.getContentResolver(),"enabled_notification_listeners").contains(getApplicationContext().getPackageName())) {
             getApplicationContext().startActivity(new Intent("android.settings.ACTION_NOTIFICATION_LISTENER_SETTINGS"));
         }
@@ -58,6 +61,8 @@ public class ConnectActivity extends AppCompatActivity {
         setContentView(R.layout.activity_connect);
         scanBtn = (Button)findViewById(R.id.scanBtn);
         stopScanBtn = (Button)findViewById(R.id.stopScanBtn);
+        connectBtn = (Button)findViewById(R.id.connectBtn);
+        disconnectBtn = (Button)findViewById(R.id.disconnectBtn);
         devList = (ListView)findViewById(R.id.deviceList);
         macAddrText = (EditText)findViewById(R.id.macAddrText);
         lAdapter = new ArrayAdapter<>(this, android.R.layout.simple_list_item_1, foundDevices);
@@ -115,11 +120,24 @@ public class ConnectActivity extends AppCompatActivity {
     }
 
     public void connectFrontendAction(View view) {
+        connectBtn.setVisibility(View.GONE);
+        disconnectBtn.setVisibility(View.VISIBLE);
         String macAddress = macAddrText.getText().toString();
         BluetoothDevice device = mBluetoothAdapter.getRemoteDevice(macAddress);
         Intent i = new Intent(configurationIntentName);
         Bundle btBundle = new Bundle();
         btBundle.putParcelable("bt_device", device);
+        btBundle.putBoolean("activate", true);
+        i.putExtras(btBundle);
+        LocalBroadcastManager.getInstance(this).sendBroadcast(i);
+    }
+
+    public void disconnectFrontendAction(View view) {
+        disconnectBtn.setVisibility(View.GONE);
+        connectBtn.setVisibility(View.VISIBLE);
+        Intent i = new Intent(configurationIntentName);
+        Bundle btBundle = new Bundle();
+        btBundle.putBoolean("activate", false);
         i.putExtras(btBundle);
         LocalBroadcastManager.getInstance(this).sendBroadcast(i);
     }
