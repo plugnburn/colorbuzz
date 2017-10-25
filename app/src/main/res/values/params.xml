@@ -1,9 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="operation_char_uuid">6e400002-b5a3-f393-e0a9-e50e24dcca9d</string>
+    <string name="monitored_char_uuid">6e400003-b5a3-f393-e0a9-e50e24dcca9d</string>
     <string name="notification_intent">xyz.a831337.colorbuzz.buzz</string>
     <string name="configuration_intent">xyz.a831337.colorbuzz.conf</string>
     <string-array name="app_blacklist">
+        <item>xyz.a831337.colorbuzz</item>
         <item>com.huawei.colorbands</item>
     </string-array>
     <integer name="main_buzz_signal">63</integer>

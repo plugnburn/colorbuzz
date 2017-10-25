@@ -1,12 +1,16 @@
 package xyz.a831337.colorbuzz;
 
+import android.app.NotificationManager;
 import android.content.res.Resources;
+import android.support.v4.app.NotificationCompat;
 import android.support.v4.content.LocalBroadcastManager;
 import android.bluetooth.*;
 import android.util.*;
 import android.service.notification.NotificationListenerService;
 import android.service.notification.StatusBarNotification;
 import android.content.*;
+import android.app.PendingIntent;
+import android.os.AsyncTask;
 
 import java.util.*;
 
@@ -17,14 +21,19 @@ public class BuzzService extends NotificationListenerService {
     private boolean rcvReady = false;
     private BluetoothDevice btDevice;
     private BluetoothGattCharacteristic operationChar;
+    private BluetoothGattCharacteristic monitoringChar;
     private BluetoothGatt gattInstance;
     private String charString;
+    private String readCharString;
     private String notificationIntentName;
     private String configurationIntentName;
     private String[] appBlacklist;
     public int mainBuzzSignal;
     public int connectBuzzSignal;
     public boolean activated = false;
+    private int notificationId = 999;
+    private NotificationCompat.Builder notificationBuilder;
+    private NotificationManager notificationMgr;
 
     public class BuzzNotificationReceiver extends BroadcastReceiver {
         @Override
@@ -38,6 +47,10 @@ public class BuzzService extends NotificationListenerService {
         this.operationChar = charac;
     }
 
+    public void setMonitoringChar(BluetoothGattCharacteristic charac) {
+        this.monitoringChar = charac;
+    }
+
     public void setOperationGatt(BluetoothGatt gatt) {
         this.gattInstance = gatt;
     }
@@ -45,6 +58,7 @@ public class BuzzService extends NotificationListenerService {
     public void connectDevice(BluetoothDevice dev) {
         this.btDevice = dev;
         final UUID writeCharUuid = UUID.fromString(this.charString);
+        final UUID readCharUuid = UUID.fromString(this.readCharString);
         final BluetoothGattCallback gattCallback = new BluetoothGattCallback() {
             private boolean connected = false;
             private BluetoothGattCharacteristic charObj;
@@ -61,7 +75,7 @@ public class BuzzService extends NotificationListenerService {
                         if(connected) {
                             connected = false;
                             if(BuzzService.this.activated)
-                                BuzzService.this.btDevice.connectGatt((Context) BuzzService.this, false, this);
+                                BuzzService.this.btDevice.connectGatt(BuzzService.this, false, this);
                             else
                                 gatt.close();
                         }
@@ -82,8 +96,41 @@ public class BuzzService extends NotificationListenerService {
                         if(charObj.getUuid().compareTo(writeCharUuid) == 0) {
                             Log.i("BuzzListener", "Device Connected");
                             BuzzService.this.setOperationChar(charObj);
-                            BuzzService.this.buzz(BuzzService.this.connectBuzzSignal);
+                            AsyncTask.execute(new Runnable() {
+                                @Override
+                                public void run() {
+                                    notificationMgr.notify(notificationId, notificationBuilder.build());
+                                    BuzzService.this.buzz(BuzzService.this.connectBuzzSignal);
+                                }
+                            });
                         }
+                        if(charObj.getUuid().compareTo(readCharUuid) == 0) {
+                            UUID notifyUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
+                            BluetoothGattDescriptor charDescriptor = charObj.getDescriptor(notifyUuid);
+                            charDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            charObj.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
+                            gatt.writeDescriptor(charDescriptor);
+                            gatt.setCharacteristicNotification(charObj, true);
+                            BuzzService.this.setMonitoringChar(charObj);
+                        }
+                    }
+                }
+            }
+
+            @Override
+            public void onCharacteristicChanged(BluetoothGatt gatt, BluetoothGattCharacteristic charObj) {
+                if(charObj.getUuid().compareTo(readCharUuid) == 0) {
+                    byte[] data = charObj.getValue();
+                    if(data[0] == 0x44 && data[1] == 0x3B) {
+                        int chargeLevel = (int)data[2]; //charge level
+                        //int uvLevel = (int)data[3]; //UV level???
+                        notificationBuilder.setContentText("Charge: " + chargeLevel + "%");
+                        AsyncTask.execute(new Runnable() {
+                            @Override
+                            public void run() {
+                                notificationMgr.notify(notificationId, notificationBuilder.build());
+                            }
+                        });
                     }
                 }
             }
@@ -96,6 +143,12 @@ public class BuzzService extends NotificationListenerService {
             this.buzz(this.connectBuzzSignal);
             this.activated = false;
             this.gattInstance.disconnect();
+            AsyncTask.execute(new Runnable() {
+                @Override
+                public void run() {
+                    notificationMgr.cancel(notificationId);
+                }
+            });
         }
     }
 
@@ -136,10 +189,20 @@ public class BuzzService extends NotificationListenerService {
         configurationIntentName = getString(R.string.configuration_intent);
         notificationIntentName = getString(R.string.notification_intent);
         charString = getString(R.string.operation_char_uuid);
+        readCharString = getString(R.string.monitored_char_uuid);
         Resources resources = getResources();
         appBlacklist = resources.getStringArray(R.array.app_blacklist);
         mainBuzzSignal = resources.getInteger(R.integer.main_buzz_signal);
         connectBuzzSignal = resources.getInteger(R.integer.connect_buzz_signal);
+        notificationBuilder = new NotificationCompat.Builder(this)
+                        .setSmallIcon(R.drawable.ic_stat_name)
+                        .setContentTitle("ColorBuzz")
+                        .setContentText("Device connected").setOngoing(true);
+        Intent resultIntent = new Intent(this, ConnectActivity.class);
+        PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent,
+                PendingIntent.FLAG_UPDATE_CURRENT);
+        notificationBuilder.setContentIntent(resultPendingIntent);
+        notificationMgr = (NotificationManager) getSystemService(NOTIFICATION_SERVICE);
         this.setupReceiver();
         super.onListenerConnected();
     }
