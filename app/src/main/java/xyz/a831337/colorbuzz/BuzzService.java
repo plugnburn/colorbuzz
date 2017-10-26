@@ -18,6 +18,7 @@ public class BuzzService extends NotificationListenerService {
 
     private BuzzNotificationReceiver rcv;
     private BuzzConfigurationReceiver confRcv;
+    private ScreenActionReceiver scrRcv;
     private boolean rcvReady = false;
     private BluetoothDevice btDevice;
     private BluetoothGattCharacteristic operationChar;
@@ -173,12 +174,16 @@ public class BuzzService extends NotificationListenerService {
         gattInstance.writeCharacteristic(operationChar);
     }
 
-    public void setupReceiver(){
+    public void setupReceiver() {
         if(!this.rcvReady) {
             this.rcv = new BuzzService.BuzzNotificationReceiver();
             this.confRcv = new BuzzService.BuzzConfigurationReceiver();
+            this.scrRcv = new BuzzService.ScreenActionReceiver();
             this.rcvReady = true;
             registerReceiver(this.rcv, new IntentFilter(notificationIntentName));
+            IntentFilter scrFilter = new IntentFilter(Intent.ACTION_SCREEN_ON);
+            scrFilter.addAction(Intent.ACTION_SCREEN_OFF);
+            registerReceiver(this.scrRcv, scrFilter);
             LocalBroadcastManager.getInstance(this).registerReceiver(this.confRcv, new IntentFilter(configurationIntentName));
         }
     }
@@ -196,8 +201,8 @@ public class BuzzService extends NotificationListenerService {
         connectBuzzSignal = resources.getInteger(R.integer.connect_buzz_signal);
         notificationBuilder = new NotificationCompat.Builder(this)
                         .setSmallIcon(R.drawable.ic_stat_name)
-                        .setContentTitle("ColorBuzz")
-                        .setContentText("Device connected").setOngoing(true);
+                        .setContentTitle("Device connected")
+                        .setContentText("Charge: estimating").setOngoing(true);
         Intent resultIntent = new Intent(this, ConnectActivity.class);
         PendingIntent resultPendingIntent = PendingIntent.getActivity(this, 0, resultIntent,
                 PendingIntent.FLAG_UPDATE_CURRENT);
@@ -211,6 +216,7 @@ public class BuzzService extends NotificationListenerService {
     public void onDestroy() {
         if(this.rcvReady) {
             unregisterReceiver(this.rcv);
+            unregisterReceiver(this.scrRcv);
             LocalBroadcastManager.getInstance(this).unregisterReceiver(this.confRcv);
         }
         this.rcvReady = false;
@@ -227,4 +233,18 @@ public class BuzzService extends NotificationListenerService {
             sendBroadcast(i);
         }
     }
+
+    public class ScreenActionReceiver extends BroadcastReceiver {
+        @Override
+        public void onReceive(Context context, Intent intent) {
+            if(BuzzService.this.activated) {
+                if(intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
+                    gattInstance.setCharacteristicNotification(monitoringChar, false);
+                } else if(intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                    gattInstance.setCharacteristicNotification(monitoringChar, true);
+                }
+            }
+        }
+    }
+
 }
