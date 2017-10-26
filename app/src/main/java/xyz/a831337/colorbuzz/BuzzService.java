@@ -23,6 +23,7 @@ public class BuzzService extends NotificationListenerService {
     private BluetoothDevice btDevice;
     private BluetoothGattCharacteristic operationChar;
     private BluetoothGattCharacteristic monitoringChar;
+    private BluetoothGattDescriptor monitoringCharDescriptor;
     private BluetoothGatt gattInstance;
     private String charString;
     private String readCharString;
@@ -107,10 +108,10 @@ public class BuzzService extends NotificationListenerService {
                         }
                         if(charObj.getUuid().compareTo(readCharUuid) == 0) {
                             UUID notifyUuid = UUID.fromString("00002902-0000-1000-8000-00805f9b34fb");
-                            BluetoothGattDescriptor charDescriptor = charObj.getDescriptor(notifyUuid);
-                            charDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                            monitoringCharDescriptor = charObj.getDescriptor(notifyUuid);
+                            monitoringCharDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
                             charObj.setWriteType(BluetoothGattCharacteristic.WRITE_TYPE_DEFAULT);
-                            gatt.writeDescriptor(charDescriptor);
+                            gatt.writeDescriptor(monitoringCharDescriptor);
                             gatt.setCharacteristicNotification(charObj, true);
                             BuzzService.this.setMonitoringChar(charObj);
                         }
@@ -239,8 +240,12 @@ public class BuzzService extends NotificationListenerService {
         public void onReceive(Context context, Intent intent) {
             if(BuzzService.this.activated) {
                 if(intent.getAction().equals(Intent.ACTION_SCREEN_OFF)) {
+                    monitoringCharDescriptor.setValue(BluetoothGattDescriptor.DISABLE_NOTIFICATION_VALUE);
+                    gattInstance.writeDescriptor(monitoringCharDescriptor);
                     gattInstance.setCharacteristicNotification(monitoringChar, false);
                 } else if(intent.getAction().equals(Intent.ACTION_SCREEN_ON)) {
+                    monitoringCharDescriptor.setValue(BluetoothGattDescriptor.ENABLE_NOTIFICATION_VALUE);
+                    gattInstance.writeDescriptor(monitoringCharDescriptor);
                     gattInstance.setCharacteristicNotification(monitoringChar, true);
                 }
             }
